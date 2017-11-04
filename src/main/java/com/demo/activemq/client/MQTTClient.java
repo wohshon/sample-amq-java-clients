@@ -17,6 +17,8 @@ public class MQTTClient {
 	        System.out.println("Proper Usage is: java -cp amqclient.jar com.demo.activemq.client.MQTTClient <broker url: tcp://host:port> <username> <password> <client id> <topic name> <content>");
 	        System.exit(0);
 	    }		
+// java -cp /home/virtuser/workspace10/activemq.client/amqclient.jar com.demo.activemq.client.MQTTClient tcp://192.168.223.130:10883 admin admin client123 SENSOR/PSI/1/DATA  "dummy" 1
+	    
 /*        String topic        = "order.mqtt.topic";
         //String content      = "Message from MqttPublishSample";
         String content = "<order><orderId>1</orderId><orderItems>	<orderItemId>1</orderItemId>	<orderItemQty>1</orderItemQty><orderItemPublisherName>Orly</orderItemPublisherName><orderItemPrice>10.59</orderItemPrice></orderItems></order>";
