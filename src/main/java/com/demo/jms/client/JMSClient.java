@@ -4,6 +4,7 @@ import java.util.Properties;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
@@ -13,12 +14,16 @@ import javax.jms.TextMessage;
 import javax.jms.Topic;
 import javax.naming.Context;
 import javax.naming.InitialContext;
-import javax.naming.NamingException;
+
+import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.ActiveMQSslConnectionFactory;
 
 public class JMSClient {
 	
 //java -cp /home/virtuser/workspace10/activemq.client/amqclient.jar com.demo.jms.client.JMSClient http-remoting://192.168.223.130:8080 jmsuser jboss.1234 jms/topic/DemoTopic t 'hello world' jms/RemoteConnectionFactory 1 
 //java -cp /home/virtuser/workspace10/activemq.client/amqclient.jar com.demo.jms.client.JMSClient http-remoting://192.168.223.130:8080 jmsuser jboss.1234 jms/topic/DemoTopic t 'dummy' jms/RemoteConnectionFactory 0 
+	
+//for non jndi cases, jndilookup ="amq" , will use AMQConnection factory	
 
 
 	public static void main(String[] args) {
@@ -59,17 +64,27 @@ public class JMSClient {
     
     public JMSClient(String url, String username, String password, String jndilookup) {
     	try {
+    		
     		env = new Properties();
     		env.put(Context.INITIAL_CONTEXT_FACTORY,
                     "org.jboss.naming.remote.client.InitialContextFactory");
             env.put(Context.PROVIDER_URL, url);
             env.put(Context.SECURITY_PRINCIPAL, username);
             env.put(Context.SECURITY_CREDENTIALS, password);
-            namingContext = new InitialContext(env);
-            connectionFactory = (ConnectionFactory) namingContext
-                    .lookup(jndilookup);
-            System.out.println("Got ConnectionFactory " + jndilookup);    		
-            
+
+            if (jndilookup.equals("amq")) {
+            	connectionFactory = (ActiveMQConnectionFactory)new ActiveMQSslConnectionFactory(url);
+            	((ActiveMQSslConnectionFactory)connectionFactory).setUserName(username);
+            	((ActiveMQSslConnectionFactory)connectionFactory).setPassword(password);
+				((ActiveMQSslConnectionFactory)connectionFactory).setTrustStore("file:/home/virtuser/keystores/demo/client.ts");
+				((ActiveMQSslConnectionFactory)connectionFactory).setTrustStorePassword("password");
+				((ActiveMQSslConnectionFactory)connectionFactory).setBrokerURL("failover://"+url);;
+            }
+            else {
+                namingContext = new InitialContext(env);
+                connectionFactory = (ConnectionFactory) namingContext .lookup(jndilookup);
+                System.out.println("Got ConnectionFactory " + jndilookup);    		
+            }
             
     	} catch (Exception e) {
 			e.printStackTrace();
@@ -80,7 +95,11 @@ public class JMSClient {
     	
     	
     	try {
-			Object dest=this.namingContext.lookup(destName);
+    		Destination dest=null;
+            String m=null;    		
+    		//dest=(Destination)this.namingContext.lookup(destName);
+
+
             connection=connectionFactory.createConnection(
             		env.getProperty(Context.SECURITY_PRINCIPAL),
             		env.getProperty(Context.SECURITY_CREDENTIALS));
@@ -89,25 +108,35 @@ public class JMSClient {
             TextMessage message=session.createTextMessage(msg);
             MessageProducer messageProducer = null;
             if (destType.equals("q")) {
-            	messageProducer=session.createProducer((Queue)dest);
+                dest = (Queue)session.createQueue(destName);
+            	messageProducer=session.createProducer(dest);
             } else {
-            	messageProducer=session.createProducer((Topic)dest);
+                dest = (Topic)session.createTopic(destName);
+            	messageProducer=session.createProducer(dest);
             }
             messageProducer.send(message);
             connection.start();
-            System.out.println("Message "+msg+" sent to "+dest);
-            
-		} catch (NamingException | JMSException e) {
+            int i=0;
+            while (true) {
+            	m=msg+"_"+i++;
+            	message.setText(m);
+            	messageProducer.send(message);
+            	System.out.println("Message "+m+" sent to "+dest);
+            	try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					System.out.println("awoke..." );
+				}
+            	
+            }            
+		} catch (JMSException e) {
 			e.printStackTrace();
 		}  finally {
 			try {
 				if (connection!=null) 	connection.close();
-				if (namingContext!=null) 	namingContext.close();
 			} catch (JMSException e) {
 				e.printStackTrace();
-			} catch (NamingException e) {
-				e.printStackTrace();
-			}
+			} 
 		}//finally    	
     	
     }//
@@ -116,7 +145,10 @@ public class JMSClient {
     	
     	
     	try {
-			Object dest=this.namingContext.lookup(destName);
+    		Destination dest=null;
+            String m="";
+        
+    		//dest=(Destination)this.namingContext.lookup(destName);
             connection=connectionFactory.createConnection(
             		env.getProperty(Context.SECURITY_PRINCIPAL),
             		env.getProperty(Context.SECURITY_CREDENTIALS));
@@ -124,31 +156,29 @@ public class JMSClient {
             session=connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
             MessageConsumer messageConsumer = null;
             if (destType.equals("q")) {
-            	messageConsumer=session.createConsumer((Queue)dest);
+                dest = (Queue)session.createQueue(destName);
+            	messageConsumer=session.createConsumer(dest);
             } else {
-            	messageConsumer=session.createConsumer((Topic)dest);
+                dest = (Topic)session.createTopic(destName);
+            	messageConsumer=session.createConsumer(dest);
             }
-            
             connection.start();
-            String m="";
-            while  (!m.equals("quit")) {
+            while  (!m.equals("quit")) {    
+
             TextMessage text = (TextMessage)messageConsumer.receive();
             System.out.println("Message "+text.getText()+" recv from "+dest);
             m=text.getText();
             }
             
-		} catch (NamingException | JMSException e) {
+		} catch ( JMSException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
 			try {
 				if (connection!=null) 	connection.close();
-				if (namingContext!=null) 	namingContext.close();
 			} catch (JMSException e) {
 				e.printStackTrace();
-			} catch (NamingException e) {
-				e.printStackTrace();
-			}
+			} 
 		}//finally 
     	
     }

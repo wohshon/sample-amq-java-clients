@@ -6,6 +6,7 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 public class MQTTClient {
@@ -40,45 +41,72 @@ public class MQTTClient {
         MemoryPersistence persistence = new MemoryPersistence();
 
         try {
+        	
             MqttClient sampleClient = new MqttClient(broker, clientId, persistence);
+            
             MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setUserName(username);
             connOpts.setPassword(password.toCharArray());
+           //use the connectionlost call back to introduce a delay
+            //use custom logic, so did not turn this on
+            // connOpts.setAutomaticReconnect(true);
             //connOpts.set
-            connOpts.setCleanSession(true);
+//            connOpts.setCleanSession(true);
+            connOpts.setCleanSession(false); // to test reconnectoin
+
+            MqttCallback callback=new MqttCallback() {
+				
+				@Override
+				public void messageArrived(String arg0, MqttMessage msg) throws Exception {
+		            System.out.println("message arrvied "+msg.toString());
+					
+				}
+				
+				@Override
+				public void deliveryComplete(IMqttDeliveryToken token) {
+			            System.out.println("Delivery done "+token);
+
+					
+				}
+				
+				@Override
+				public void connectionLost(Throwable arg0) {
+					System.out.println("Lost connection");
+					
+					try {
+						System.out.println("Reconnecting....in 1 sec");
+						Thread.sleep(1000);
+						if (!sampleClient.isConnected()) {
+							sampleClient.connect(connOpts);
+						}
+						if (sub.equals("0")) {
+							sampleClient.subscribe(topic,0);
+						} else {
+				            send(sampleClient, topic, qos, content, sub);
+						}
+						System.out.println("done");
+
+					} catch (MqttException | InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			};
+            System.out.println("setting callback: "+broker);
             System.out.println("Connecting to broker: "+broker);
+
+            sampleClient.setCallback(callback);
             sampleClient.connect(connOpts);
             System.out.println("Connected");
-            if (sub!=null && !sub.equals("1")) {
-            	System.out.println("Publishing message: "+content);
-            	MqttMessage message = new MqttMessage(content.getBytes());
-            	message.setQos(qos);
-            	sampleClient.publish(topic, message);
-            	System.out.println("Message published");
+            if (sub!=null && !sub.equals("0")) {
+               send(sampleClient, topic, qos, content, sub);
                 sampleClient.disconnect();
                 System.out.println("Disconnected");            	
                 System.exit(0);
             }//
-            else {
+            else { // sub =1 
             	System.out.println("Subscribed to topic "+topic);
-            	sampleClient.subscribe(topic,0);
-            	sampleClient.setCallback(new MqttCallback() {
-                @Override
-                public void connectionLost(Throwable cause) {
-
-                }
-
-                @Override
-                public void messageArrived(String topic, MqttMessage message) throws Exception {
-                  System.out.println("Got message from "+topic+ ":"+message.toString());
-                }
-
-                @Override
-                public void deliveryComplete(IMqttDeliveryToken token) {
-
-                }
-             });   
-            
+            	sampleClient.subscribe(topic,0);            
             }//
             
         } catch(MqttException me) {
@@ -89,5 +117,23 @@ public class MQTTClient {
             System.out.println("excep "+me);
             me.printStackTrace();
         }		
+	}
+	
+	private static void send(MqttClient sampleClient, String topic, int qos, String content, String sub) throws MqttPersistenceException, MqttException {
+        	
+        	while (!content.equals("quit")) {
+            	System.out.println("Publishing message: "+content);
+            	
+            	MqttMessage message = new MqttMessage(content.getBytes());
+            	message.setQos(qos);
+            	sampleClient.publish(topic, message);
+            	System.out.println("Message published");
+            	try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+        	}		
 	}
 }

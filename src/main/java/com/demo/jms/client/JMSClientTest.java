@@ -4,7 +4,6 @@ import java.util.Properties;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
-import javax.jms.JMSContext;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
@@ -13,6 +12,7 @@ import javax.jms.Topic;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 
+import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.junit.Test;
 
 public class JMSClientTest {
@@ -30,14 +30,18 @@ public class JMSClientTest {
         		final Properties env = new Properties();
         		env.put(Context.INITIAL_CONTEXT_FACTORY,
                         "org.jboss.naming.remote.client.InitialContextFactory");
-                env.put(Context.PROVIDER_URL, "http-remoting://192.168.223.130:8080");
+/*        		env.put(Context.INITIAL_CONTEXT_FACTORY,
+                        "org.apache.activemq.jndi.ActiveMQInitialContextFactory");*/
+        		//?ha=true&retryInterval=1000&retryIntervalMultiplier=1.0&reconnectAttempts=-1
+                env.put(Context.PROVIDER_URL, "http-remoting://192.168.223.130:8080, http-remoting://192.168.223.130:9080");
                 env.put(Context.SECURITY_PRINCIPAL, "jmsuser");
                 env.put(Context.SECURITY_CREDENTIALS, "jboss.1234");
                 namingContext = new InitialContext(env);
                 ConnectionFactory connectionFactory = (ConnectionFactory) namingContext
                         .lookup(CONNECTION_FACTORY);
                 System.out.println("Got ConnectionFactory " + CONNECTION_FACTORY);
-     
+                System.out.println("***"+((ActiveMQConnectionFactory)connectionFactory).toString());
+                
 /*                Destination destination = (Destination) namingContext
                         .lookup(DESTINATION);*/
                 Topic topic=(Topic)namingContext.lookup(DESTINATION);
@@ -49,7 +53,7 @@ public class JMSClientTest {
                 Session session=connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
                 MessageProducer producer=session.createProducer(topic);
                 TextMessage message=session.createTextMessage(MESSAGE);
-                producer.send(message);
+                //producer.send(message);
                 System.out.println("message sent");
                 MessageConsumer messageConsumer = session.createConsumer(topic);
                 connection.start();

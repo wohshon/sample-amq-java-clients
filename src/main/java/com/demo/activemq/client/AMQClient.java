@@ -17,10 +17,16 @@ public class AMQClient {
 
 	public static void main(String[] args) {
 		 AMQClient client=new AMQClient();
-		 for (int i=0; i < 10 ; i++) {
-			// client.send(" <order><orderId>1</orderId><orderItems>	<orderItemId>1</orderItemId>	<orderItemQty>1</orderItemQty>	<orderItemPublisherName>Orly</orderItemPublisherName>	<orderItemPrice>10.59</orderItemPrice></orderItems></order> ");
+/*		 for (int i=0; i < 10 ; i++) {
+			 client.send(" <order><orderId>1</orderId><orderItems>	<orderItemId>1</orderItemId>	<orderItemQty>1</orderItemQty>	<orderItemPublisherName>Orly</orderItemPublisherName>	<orderItemPrice>10.59</orderItemPrice></orderItems></order> ");
 			//client.send(" <order><orderId>1</orderId><orderItems>	<orderItemId>1</orderItemId>	<orderItemQty>1</orderItemQty>	<orderItemPublisherName>ABC Company</orderItemPublisherName>	<orderItemPrice>10.59</orderItemPrice></orderItems></order> ");
-		 }
+			try {
+				Thread.sleep(1500);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} 
+		 }*/
 		 client.consume("demo.queue.1");
 /*
  <order><orderId>1</orderId><orderItems>	<orderItemId>1</orderItemId>	<orderItemQty>1</orderItemQty>	<orderItemPublisherName>Orly</orderItemPublisherName>	<orderItemPrice>10.59</orderItemPrice></orderItems></order> 
@@ -30,14 +36,14 @@ public class AMQClient {
 	
 //	private ActiveMQConnectionFactory connectionFactory;
 	private ActiveMQConnectionFactory connectionFactory;
-	private String url="ssl://broker-amq-tcp-ssl-amq.cloudapps-ocp35-wohshon.ddns.net:443";
+	private String url="ssl://broker-amq-tcp-ssl-amq-demo.192.168.223.196.nip.io:443";
 	//for nodeport, in aws, point to any node except master as the SG is not setup there
 //	/tcp://54.255.166.167:30002
 	private Connection connection;
 	//private String queue="demo.queue.1";
 	private String queue="demo.queue.1";
 	public AMQClient() {
-		this(true);
+		this(false);
 	}
 	public AMQClient(String host, String user, String password) {
 		
@@ -56,11 +62,14 @@ public class AMQClient {
 			}			
 		}
 		else {
-			connectionFactory=new ActiveMQConnectionFactory("tcp://13.229.116.157:30002");
+			connectionFactory=new ActiveMQConnectionFactory("tcp://192.168.223.196:30003");
+			System.out.println("connectionFactory "+connectionFactory.toString());
 			
 		}
 		connectionFactory.setUserName("admin");
 		connectionFactory.setPassword("admin");		
+		//connectionFactory.setUserName("joe");
+		//connectionFactory.setPassword("password");		
 	}
 	
 	
@@ -99,7 +108,7 @@ public class AMQClient {
 		
 		try {
 			connection=connectionFactory.createConnection();
-	        connection.start();
+	       // connection.start();
             // Create a Session
             Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
@@ -108,18 +117,20 @@ public class AMQClient {
 
             // Create a MessageConsumer from the Session to the Topic or Queue
             MessageConsumer consumer = session.createConsumer(destination);
-            
+            connection.start();
             // Wait for a message
-            Message message = consumer.receive(1000);
-
-            if (message instanceof TextMessage) {
-                TextMessage textMessage = (TextMessage) message;
-                String text = textMessage.getText();
-                System.out.println("Received: " + text);
-            } else {
-                System.out.println("Received: " + message);
+            String m="";
+            while  (!m.equals("quit")) {
+                Message message = consumer.receive(2000);
+	            if (message instanceof TextMessage) {
+	                TextMessage textMessage = (TextMessage) message;
+	                String text = textMessage.getText();
+	                m=text;
+	                System.out.println("Received: " + text);
+	            } else {
+	                System.out.println("Received: " + message);
+	            }
             }
-
             consumer.close();
             session.close();
             connection.close();      
