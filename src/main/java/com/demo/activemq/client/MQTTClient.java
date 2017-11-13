@@ -119,14 +119,19 @@ public class MQTTClient {
         }		
 	}
 	
-	private static void send(MqttClient sampleClient, String topic, int qos, String content, String sub) throws MqttPersistenceException, MqttException {
+	private static void send(MqttClient sampleClient, String topic, int qos, String content, String sub) {
         	
         	while (!content.equals("quit")) {
             	System.out.println("Publishing message: "+content);
             	
             	MqttMessage message = new MqttMessage(content.getBytes());
             	message.setQos(qos);
-            	sampleClient.publish(topic, message);
+            	try {
+					sampleClient.publish(topic, message);
+				} catch (MqttException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
             	System.out.println("Message published");
             	try {
 					Thread.sleep(2000);
