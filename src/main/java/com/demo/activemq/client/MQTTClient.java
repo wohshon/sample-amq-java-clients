@@ -98,13 +98,13 @@ public class MQTTClient {
             sampleClient.setCallback(callback);
             sampleClient.connect(connOpts);
             System.out.println("Connected");
-            if (sub!=null && !sub.equals("0")) {
+            if (sub!=null && !sub.equals("0")) { //if sub==1, send
                send(sampleClient, topic, qos, content, sub);
                 sampleClient.disconnect();
                 System.out.println("Disconnected");            	
                 System.exit(0);
             }//
-            else { // sub =1 
+            else { // sub == 0 
             	System.out.println("Subscribed to topic "+topic);
             	sampleClient.subscribe(topic,0);            
             }//
